@@ -1,9 +1,8 @@
-# Some of this abstraction might be unnecessarily complex, but practicing OOP is more important
-
-require 'pry-byebug'
+# Some of this abstraction might be unnecessarily complex, but practicing OOP design is more important
 
 class Game
 
+    #initialize a blank game
     def initialize
         @players = []
         @board = Board.new
@@ -11,17 +10,18 @@ class Game
 
     # number of players is hard coded to 2
     def play_game
-        # @player1 = create_player(1)
-        # @player2 = create_player(2)
-        @player1 = Player.new("Robert", 1)
-        # @player2 = Player.new("John", 2)
+
+        # Ask each player for their name, create player objects and push to players array
+        @player1 = create_player(1)
+        @player2 = create_player(2)
         @players.push(@player1)
-        # @players.push(@player2)
+        @players.push(@player2)
 
         @board.render_board # render starting board
 
         catch :exit_game do # for stopping the game when there is a winner
             while true
+                # ask for each player's moves and update the board until there is a winner
                 @players.each do |player|
                     player_move(player)
                     @board.render_board
@@ -37,6 +37,7 @@ class Game
         end
     end
 
+    # Ask the player for a move. If the cell is unclaimed, update the board. If the cell is already claimed, return an error an ask for another move
     def player_move(player)
         puts "Enter move for Player ##{player.number} #{player.name}:"
         while player_move = decodeRowCol(gets.chomp)
@@ -44,11 +45,14 @@ class Game
                 @board.mark_cell(player_move, player)
                 break
             else
-                puts "Cell already claimed"
+                claimed_cell = @board.return_cell(player_move)
+                
+                puts "Cell already claimed by Player ##{claimed_cell.player.number} #{claimed_cell.player.name}"
             end
         end
     end
 
+    # For a given player number, ask player for a name. Return a player object
     def create_player(number)
         puts "Enter Player ##{number} name: "
         player_name = gets.chomp
@@ -56,8 +60,10 @@ class Game
         Player.new(player_name, number)
     end
 
+    
+    # Helper function for accepting user input
+    # Board rows and columns are displayed in a user-friendly way (Row: 1, 2, 3. Col: A, B, C). This method converts a user choice into [row, col].
     # returns [row, col]
-    # helper function for accepting user input (#play_round)
     def decodeRowCol(string)
         
         result = []
@@ -82,9 +88,8 @@ class Game
         result
     end
 
-    # [row, col]
-    # win_coordinates are for a 3x3 board
-    # return player object if one has won the game, return nil if nobody has won
+    # Return player object if one has won the game, return nil if nobody has won
+    # Win_coordinates are hardcoded for a 3x3 board
     def find_winning_player
         
         # optional: an algorithm can be made to compute this for a n-sized board
@@ -95,7 +100,7 @@ class Game
         win_coordinates = row_coordinates + col_coordinates + diagonal_coordinates
 
         win_coordinates.each do |tuple_coordinates|
-            # cell objects grabbed from each tuple coordinate
+            # cell objects grabbed from each coordinate in tuple
             tuple_cell = []
 
             tuple_coordinates.each do |coordinate|
@@ -107,16 +112,14 @@ class Game
             return @player1
            elsif tuple_cell.all? {|cell| cell.player == @player2} 
             return @player2
-           else
-            return nil
            end
         end
-    end
 
+        nil
+    end
 end
 
 class Board
-    attr_reader :board
 
     def initialize
         # create 3x3 board of Cell objects
@@ -127,16 +130,23 @@ class Board
     # display the current state of the game
     def render_board
         puts "   [A] [B] [C]"
-        puts "[1] #{@board[0][0].to_s} | #{@board[0][1].to_s} | #{@board[0][2].to_s} "
-        puts "[2] #{@board[1][0].to_s} | #{@board[1][1].to_s} | #{@board[1][2].to_s} "
-        puts "[3] #{@board[2][0].to_s} | #{@board[2][1].to_s} | #{@board[2][2].to_s}"
+        puts "[1] #{@board[0][0]} | #{@board[0][1]} | #{@board[0][2]} "
+        puts "[2] #{@board[1][0]} | #{@board[1][1]} | #{@board[1][2]} "
+        puts "[3] #{@board[2][0]} | #{@board[2][1]} | #{@board[2][2]}"
         puts "-------------"
     end
 
-    def unclaimed_cell?(array)
-        row = array[0]
-        col = array[1]
-        cell = @board[row][col]
+    # return the cell object at a coordinate
+    def return_cell(coordinate)
+        row = coordinate[0]
+        col = coordinate[1]
+
+        @board[row][col]
+    end
+
+    # return true if the cell at coordinate has been claimed by a player
+    def unclaimed_cell?(coordinate)
+        cell = return_cell(coordinate)
 
         if(cell.player == nil)
             return true
@@ -145,27 +155,19 @@ class Board
         end
     end
 
-    def mark_cell (array, player)
-        row = array[0]
-        col = array[1]
-        cell = @board[row][col]
+    def mark_cell(coordinate, player)
+        cell = return_cell(coordinate)
 
-        if(unclaimed_cell?(array))
+        if(unclaimed_cell?(coordinate))
             cell.set_mark(player)
         else
             puts "Error: cell has already been claimed"
             return nil
         end
     end
-
-    def return_cell (array)
-        row = array[0]
-        col = array[1]
-
-        @board[row][col]
-    end
 end
 
+# a player object contains its name and player number
 class Player
     attr_reader :name
     attr_reader :number
@@ -176,9 +178,9 @@ class Player
     end
 end
 
-
 # Player 1 = X
 # Player 2 = 0
+# A cell contains the "mark" on the board and its associated player
 class Cell
     attr_accessor :player
     attr_accessor :mark
@@ -188,6 +190,7 @@ class Cell
         @mark = nil
     end
 
+    # Mark the cell for a player
     def set_mark(player)
         @player = player
         if (player.number == 1)
@@ -199,6 +202,7 @@ class Cell
         end
     end
 
+    # important for displaying the board using Board#render_board
     def to_s
         if(@mark == nil)
             return " "
@@ -209,23 +213,5 @@ class Cell
 
 end
 
-# binding.pry
-
 a_game = Game.new
 a_game.play_game
-
-#a_game.find_winning_player
-
-
-# result = a_game.decodeRowCol("c3")
-
-# puts "row: #{result[0]}"
-# puts "col: #{result[1]}"
-
-# player1 = Player.new("Robert", 1)
-# player2 = Player.new("John", 2)
-
-# a_board = Board.new
-# a_board.render_board
-# a_board.mark_cell(0,0,player2)
-# a_board.render_board
